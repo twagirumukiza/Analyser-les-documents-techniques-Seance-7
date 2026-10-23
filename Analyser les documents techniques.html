@@ -1,0 +1,1076 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Analyser les documents techniques</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concept : dossier d'audit. Cartouche de plan en ouverture, chaque schéma est une planche
+   (figure + panneau « À commenter »), teal = ce qui est établi, rouille = ce qui reste à prouver. */
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --surface-2:#EAF0F2;
+  --fg:#142029; --muted:#556470; --line:#C7D2D9;
+  --accent:#0D5A6C; --accent-soft:#DAEBEF; --on-accent:#FFFFFF;
+  --warn:#B0451A; --warn-soft:#F7E5DB; --on-warn:#FFFFFF;
+  --ok:#2B6A42; --ok-soft:#DDEEE3;
+  --font-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E181F; --surface:#15232C; --surface-2:#1B2D38;
+    --fg:#E7EEF2; --muted:#9BAFBB; --line:#2C404C;
+    --accent:#62BACC; --accent-soft:#14333D; --on-accent:#0E181F;
+    --warn:#EE9068; --warn-soft:#3A2519; --on-warn:#1C0F08;
+    --ok:#7FCB9A; --ok-soft:#173226;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E181F; --surface:#15232C; --surface-2:#1B2D38;
+  --fg:#E7EEF2; --muted:#9BAFBB; --line:#2C404C;
+  --accent:#62BACC; --accent-soft:#14333D; --on-accent:#0E181F;
+  --warn:#EE9068; --warn-soft:#3A2519; --on-warn:#1C0F08;
+  --ok:#7FCB9A; --ok-soft:#173226;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:var(--font-body); font-size:16px; line-height:1.6;
+  padding-block:0;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.page{max-width:1040px; margin:0 auto; padding-block:40px 64px; display:flex; flex-direction:column; gap:72px; min-width:0}
+section{display:flex; flex-direction:column; gap:24px; min-width:0}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--font-display); text-wrap:balance; margin:0; line-height:1.15}
+h1{font-weight:800; font-size:clamp(2.1rem,6vw,3.6rem); letter-spacing:-.025em}
+h2{font-weight:800; font-size:clamp(1.55rem,3.4vw,2.15rem); letter-spacing:-.015em}
+h3{font-weight:600; font-size:1.2rem}
+h4{font-weight:600; font-size:1rem}
+p{margin:0}
+.prose{max-width:68ch}
+.eyebrow{font-family:var(--font-mono); font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--accent); margin-bottom:8px}
+.muted{color:var(--muted)}
+.mono{font-family:var(--font-mono)}
+
+/* Ouverture */
+.hero{display:flex; flex-direction:column; gap:24px}
+.lead{font-size:1.15rem; max-width:62ch; color:var(--fg)}
+.cartouche{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border:1px solid var(--fg); background:var(--surface);
+}
+.cartouche div{padding:10px 14px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); min-width:0}
+.cartouche dt{font-family:var(--font-mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.cartouche dd{margin:2px 0 0; font-weight:600}
+.cartouche{margin:0}
+.toc{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px 24px; list-style:none; padding:0; margin:0}
+.toc a{display:flex; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); text-decoration:none; color:var(--fg)}
+.toc a:hover{color:var(--accent)}
+.toc .n{font-family:var(--font-mono); color:var(--accent); min-width:1.6rem}
+
+/* Lire un schéma */
+.steps3{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px}
+.step3{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:18px; display:flex; flex-direction:column; gap:8px; min-width:0}
+.step3 .n{font-family:var(--font-mono); color:var(--accent); font-size:.8rem}
+.step3 .starter{font-style:italic; color:var(--muted); font-size:.92rem}
+
+/* Tableaux */
+.tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:8px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; min-width:560px; font-size:.95rem}
+th,td{text-align:left; padding:10px 14px; vertical-align:top; border-bottom:1px solid var(--line)}
+th{font-family:var(--font-mono); font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); background:var(--surface-2); font-weight:500}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600}
+.tbl-cap{font-size:.88rem; color:var(--muted)}
+
+.note{background:var(--accent-soft); border-radius:8px; padding:14px 18px; max-width:76ch}
+.note b{color:var(--accent)}
+.warnbox{background:var(--warn-soft); border-radius:8px; padding:14px 18px; max-width:76ch}
+.warnbox b{color:var(--warn)}
+
+/* Planche : schéma + commentaire */
+.study{background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; min-width:0}
+.fig{margin:0; display:flex; flex-direction:column; gap:12px; padding:18px 18px 16px}
+.fig-head{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap}
+.fig-tag{font-family:var(--font-mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent)}
+.fig-scroll{overflow-x:auto}
+.fig figcaption{font-size:.9rem; color:var(--muted); max-width:80ch}
+.comment{background:var(--surface-2); padding:18px; display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--line)}
+.comment h4{font-family:var(--font-mono); font-size:.72rem; letter-spacing:.09em; text-transform:uppercase; color:var(--accent); font-weight:500}
+.comment ol{margin:0; padding-left:1.3rem; display:flex; flex-direction:column; gap:6px}
+.comment label{font-size:.85rem; color:var(--muted)}
+textarea,input[type=text]{
+  width:100%; font:inherit; color:var(--fg); background:var(--surface);
+  border:1px solid var(--line); border-radius:6px; padding:10px 12px; min-width:0;
+}
+textarea{min-height:84px; resize:vertical}
+details{border:1px solid var(--line); border-radius:6px; background:var(--surface)}
+summary{cursor:pointer; padding:9px 12px; font-weight:600; font-size:.92rem}
+details > div{padding:2px 14px 14px; display:flex; flex-direction:column; gap:8px; font-size:.95rem}
+details ul{margin:0; padding-left:1.2rem; display:flex; flex-direction:column; gap:4px}
+
+/* SVG */
+.sv{display:block; width:100%; min-width:620px; height:auto}
+.sv text{font:400 12px var(--font-body); fill:var(--fg)}
+.sv .tb{font-weight:600}
+.sv .tm{fill:var(--muted); font-size:11px}
+.sv .tw{fill:var(--warn)}
+.sv .ta{fill:var(--accent)}
+.sv .to{fill:var(--on-accent)}
+.sv .tmono{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.07em}
+.sv .box{fill:var(--surface); stroke:var(--line); stroke-width:1.5}
+.sv .box-a{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.5}
+.sv .box-w{fill:var(--warn-soft); stroke:var(--warn); stroke-width:1.5}
+.sv .sg-a{fill:var(--accent-soft); stroke:var(--surface); stroke-width:2}
+.sv .sg-d{fill:var(--accent); stroke:var(--surface); stroke-width:2}
+.sv .dash{stroke-dasharray:5 4}
+.sv .ln{stroke:var(--muted); stroke-width:1.5; fill:none}
+.sv .ln-a{stroke:var(--accent); stroke-width:1.5; fill:none}
+.sv .ln-w{stroke:var(--warn); stroke-width:1.5; fill:none}
+.sv .band{stroke:var(--accent); stroke-width:2; fill:none}
+.sv .dot{fill:var(--accent)}
+.sv .dot-w{fill:var(--warn)}
+.sv .cal{fill:var(--warn)}
+.sv .caln{fill:var(--on-warn); font-weight:600; font-size:12px}
+.mk-m{fill:var(--muted)} .mk-a{fill:var(--accent)} .mk-w{fill:var(--warn)}
+
+/* Statuts de la fiche */
+.grid-status{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px}
+.st{display:flex; gap:12px; align-items:flex-start; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:10px 12px; min-width:0}
+.pill{flex:none; font-family:var(--font-mono); font-size:.66rem; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:99px; white-space:nowrap; margin-top:2px}
+.pill.ok{background:var(--ok-soft); color:var(--ok)}
+.pill.mid{background:var(--accent-soft); color:var(--accent)}
+.pill.no{background:var(--warn-soft); color:var(--warn)}
+.st b{display:block; font-size:.92rem}
+.st span.v{font-size:.88rem; color:var(--muted)}
+
+/* Repères numérotés (schéma réseau) */
+ol.badges{list-style:none; margin:0; padding:0; counter-reset:b; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:8px 24px}
+ol.badges li{counter-increment:b; display:flex; gap:10px; font-size:.93rem; min-width:0}
+ol.badges li::before{content:counter(b); flex:none; width:22px; height:22px; border-radius:50%; background:var(--warn); color:var(--on-warn); font-weight:600; font-size:.8rem; display:flex; align-items:center; justify-content:center; margin-top:1px}
+
+/* Cas NOVALYS */
+.case{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); border:1px solid var(--line); background:var(--surface); border-radius:8px; overflow:hidden; margin:0}
+.case div{padding:12px 16px; border-right:1px solid var(--line); border-bottom:1px solid var(--line)}
+.case dt{font-family:var(--font-mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.case dd{margin:2px 0 0; font-weight:600}
+.sub{display:flex; flex-direction:column; gap:20px; min-width:0}
+.sub > h3{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap}
+.sub > h3 .doc{font-family:var(--font-mono); font-size:.75rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:500}
+.rules{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0; background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.rules li{display:flex; gap:14px; padding:9px 14px; border-bottom:1px solid var(--line)}
+.rules li:last-child{border-bottom:0}
+.rules .k{font-family:var(--font-mono); color:var(--accent); flex:none; min-width:2.2rem}
+
+/* Fiche d'analyse */
+.form-doc{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px}
+fieldset{border:1px solid var(--line); border-radius:8px; background:var(--surface); padding:16px; margin:0; min-width:0; display:flex; flex-direction:column; gap:12px}
+legend{font-family:var(--font-display); font-weight:600; padding:0 6px}
+.field{display:flex; flex-direction:column; gap:4px; min-width:0}
+.field label{font-size:.85rem; color:var(--muted)}
+.btn{font:inherit; font-weight:600; background:var(--accent); color:var(--on-accent); border:0; border-radius:6px; padding:10px 16px; cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.actions{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+.status{font-size:.9rem; color:var(--muted)}
+
+.checklist{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; list-style:none; padding:0; margin:0}
+.checklist li{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:10px 14px; display:flex; gap:10px}
+.checklist li::before{content:"✓"; color:var(--ok); font-weight:600}
+footer{border-top:1px solid var(--line); padding-top:20px; font-size:.85rem; color:var(--muted); display:flex; flex-direction:column; gap:6px}
+@media print{ .comment textarea{min-height:60px} }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="mk-m"/></marker>
+    <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="mk-a"/></marker>
+    <marker id="ahW" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="mk-w"/></marker>
+  </defs>
+</svg>
+
+<div class="page">
+
+<header class="hero" id="haut">
+  <div>
+    <p class="eyebrow">Cours · Cybersécurité &amp; GRC · Séance 7</p>
+    <h1>Analyser les documents techniques</h1>
+  </div>
+  <p class="lead">Lire un dossier documentaire, repérer les écarts, évaluer les risques et formuler des recommandations justifiées, sans confondre absence de preuve et preuve d'absence. Chaque notion s'appuie sur un schéma à étudier, puis à commenter.</p>
+  <dl class="cartouche" aria-label="Fiche du cours">
+    <div><dt>Séance</dt><dd>7</dd></div>
+    <div><dt>Durée</dt><dd>2 h</dd></div>
+    <div><dt>Domaine</dt><dd>Cybersécurité &amp; GRC</dd></div>
+    <div><dt>Cas pratique</dt><dd>NOVALYS (fictif)</dd></div>
+    <div><dt>Schémas</dt><dd>10 à commenter</dd></div>
+    <div><dt>Édition</dt><dd>24/10/2026</dd></div>
+  </dl>
+  <nav aria-label="Sommaire">
+    <ol class="toc">
+      <li><a href="#lire"><span class="n">0</span>Commenter un schéma</a></li>
+      <li><a href="#deroule"><span class="n">1</span>Déroulé de la séance</a></li>
+      <li><a href="#documents"><span class="n">2</span>Les quatre documents</a></li>
+      <li><a href="#methode"><span class="n">3</span>La méthode d'analyse</a></li>
+      <li><a href="#cas"><span class="n">4</span>Étude de cas NOVALYS</a></li>
+      <li><a href="#corrige"><span class="n">5</span>Du constat à la recommandation</a></li>
+      <li><a href="#livrable"><span class="n">6</span>Votre fiche d'analyse</a></li>
+      <li><a href="#revision"><span class="n">7</span>Révision</a></li>
+    </ol>
+  </nav>
+</header>
+
+<!-- 0 -->
+<section id="lire">
+  <div>
+    <p class="eyebrow">Avant de commencer</p>
+    <h2>Comment commenter un schéma</h2>
+  </div>
+  <p class="prose">Un schéma se lit en trois temps. Les mêmes trois temps servent à rédiger le commentaire sous chaque figure : une phrase ou deux par temps suffisent.</p>
+  <div class="steps3">
+    <div class="step3"><span class="n">1</span><h3>Décrire</h3><p>Dire ce qui est représenté : les éléments, les liens, le sens des flèches. Aucune interprétation à ce stade.</p><p class="starter">« Le schéma représente… »</p></div>
+    <div class="step3"><span class="n">2</span><h3>Interpréter</h3><p>Expliquer ce que cela implique : un risque, un écart, une conséquence pour les données ou la conformité.</p><p class="starter">« Cela signifie que… donc… »</p></div>
+    <div class="step3"><span class="n">3</span><h3>Discuter</h3><p>Dire ce que le schéma ne montre pas, et quelle preuve demander pour passer d'une hypothèse à une conclusion.</p><p class="starter">« Le schéma ne permet pas d'affirmer… Il faut vérifier… »</p></div>
+  </div>
+</section>
+
+<!-- 1 -->
+<section id="deroule">
+  <div>
+    <p class="eyebrow">Partie 1 · Organisation</p>
+    <h2>Déroulé de la séance</h2>
+  </div>
+  <p class="prose">La séance suit une progression guidée, de la lecture des documents à la restitution. Objectif pédagogique : produire une analyse critique utile à un responsable informatique ou conformité.</p>
+
+  <div class="study">
+    <figure class="fig">
+      <div class="fig-head"><span class="fig-tag">Schéma 1</span><h3>Répartition des 120 minutes</h3></div>
+      <div class="fig-scroll">
+        <svg class="sv" viewBox="0 0 740 160" role="img" aria-label="Frise de la séance de 120 minutes : documents 15 min, méthode 25 min, étude de cas 50 min, recommandations 20 min, restitution et quiz 10 min">
+          <text class="tm" x="399" y="38" text-anchor="middle">Étude de cas : 42 % de la séance</text>
+          <rect class="sg-a" x="20" y="50" width="87.5" height="64"/>
+          <rect class="sg-a" x="107.5" y="50" width="145.8" height="64"/>
+          <rect class="sg-d" x="253.3" y="50" width="291.7" height="64"/>
+          <rect class="sg-a" x="545" y="50" width="116.7" height="64"/>
+          <rect class="sg-a" x="661.7" y="50" width="58.3" height="64"/>
+          <text class="tb" x="63.8" y="79" text-anchor="middle">Documents</text><text class="tm" x="63.8" y="98" text-anchor="middle">15 min</text>
+          <text class="tb" x="180.4" y="79" text-anchor="middle">Méthode</text><text class="tm" x="180.4" y="98" text-anchor="middle">25 min</text>
+          <text class="tb to" x="399.2" y="79" text-anchor="middle">Étude de cas guidée</text><text class="to" x="399.2" y="98" text-anchor="middle" style="font-size:11px">50 min</text>
+          <text class="tb" x="603.4" y="79" text-anchor="middle" style="font-size:11.5px">Recommandations</text><text class="tm" x="603.4" y="98" text-anchor="middle">20 min</text>
+          <text class="tb" x="690.9" y="79" text-anchor="middle">Quiz</text><text class="tm" x="690.9" y="98" text-anchor="middle">10 min</text>
+          <path class="ln" d="M20 114V122M195 114V122M370 114V122M545 114V122M720 114V122"/>
+          <text class="tm" x="20" y="140" text-anchor="start">0</text>
+          <text class="tm" x="195" y="140" text-anchor="middle">30 min</text>
+          <text class="tm" x="370" y="140" text-anchor="middle">60 min</text>
+          <text class="tm" x="545" y="140" text-anchor="middle">90 min</text>
+          <text class="tm" x="720" y="140" text-anchor="end">120 min</text>
+        </svg>
+      </div>
+      <figcaption>Les deux premiers temps préparent l'outil, l'étude de cas l'utilise, les deux derniers consolident. Le dernier segment regroupe la restitution et le quiz.</figcaption>
+    </figure>
+    <aside class="comment">
+      <h4>À commenter</h4>
+      <ol>
+        <li>Quelle étape occupe le plus de temps, et pourquoi ?</li>
+        <li>Pourquoi les recommandations viennent-elles après l'étude de cas et non pendant ?</li>
+      </ol>
+      <label for="c-1">Votre commentaire (enregistré dans ce navigateur)</label>
+      <textarea id="c-1" data-save="Schéma 1 · Déroulé"></textarea>
+      <details><summary>Pistes de commentaire</summary><div>
+        <p>L'étude de cas dure 50 minutes parce qu'elle sert à pratiquer la méthode sur des documents réels. Sans pratique, les six étapes restent abstraites.</p>
+        <p>Les recommandations s'appuient sur des écarts et des risques déjà établis. Les formuler plus tôt donnerait des conseils génériques, rattachés à aucune preuve.</p>
+      </div></details>
+    </aside>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="documents">
+  <div>
+    <p class="eyebrow">Partie 2 · Les fondamentaux</p>
+    <h2>Les quatre types de documents</h2>
+  </div>
+  <p class="prose">Chaque document donne une partie de la vision. Il faut comprendre sa finalité et vérifier ce qu'il permet réellement d'affirmer.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Document</th><th>Finalité</th><th>Contenu attendu</th><th>Question réflexe</th></tr></thead>
+      <tbody>
+        <tr><td>A · Registre des traitements</td><td>Recenser les usages des données personnelles.</td><td>Données et finalités, personnes ayant accès, durées de conservation, destinataires, sous-traitants et sécurité.</td><td>Les accès et les durées sont-ils justifiés pour chaque catégorie de données ?</td></tr>
+        <tr><td>B · Fiche de violation</td><td>Documenter une atteinte à la confidentialité, l'intégrité ou la disponibilité de données personnelles.</td><td>Date, nature, périmètre, données et personnes concernées, conséquences potentielles, mesures et décisions de notification.</td><td>L'incident, les risques et les décisions sont-ils documentés ?</td></tr>
+        <tr><td>C · Politique de sécurité</td><td>Fixer les règles applicables aux utilisateurs et aux équipes informatiques.</td><td>Authentification et habilitations, journalisation et surveillance, signalement des incidents, responsabilités et contrôles.</td><td>La règle est-elle précise, applicable et vérifiable ?</td></tr>
+        <tr><td>D · Schéma réseau</td><td>Représenter les équipements, les zones réseau et les communications prévues.</td><td>Postes et serveurs, routeur et pare-feu, zones exposées et internes, flux autorisés, chemins d'administration.</td><td>Le schéma correspond-il à la configuration réelle ?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><b>À retenir.</b> Un document décrit une situation ou une règle. Il ne prouve pas à lui seul que la mesure est effectivement appliquée. Demandez les éléments de vérification pertinents.</div>
+
+  <div class="study">
+    <figure class="fig">
+      <div class="fig-head"><span class="fig-tag">Schéma 2</span><h3>Ce qui est écrit, ce qui reste à vérifier</h3></div>
+      <div class="fig-scroll">
+        <svg class="sv" viewBox="0 0 740 330" role="img" aria-label="Pour chacun des quatre documents, une flèche pleine va du document à ce qui est écrit, puis une flèche pointillée va vers ce qu'il faut vérifier par des preuves">
+          <!-- colonnes : x = 20, 200, 380, 560 ; largeur 160 -->
+          <rect class="box-a" x="20" y="20" width="160" height="48" rx="6"/>
+          <text class="tb" x="100" y="41" text-anchor="middle">Document A</text><text class="tm" x="100" y="58" text-anchor="middle">Registre des traitements</text>
+          <rect class="box-a" x="200" y="20" width="160" height="48" rx="6"/>
+          <text class="tb" x="280" y="41" text-anchor="middle">Document B</text><text class="tm" x="280" y="58" text-anchor="middle">Fiche de violation</text>
+          <rect class="box-a" x="380" y="20" width="160" height="48" rx="6"/>
+          <text class="tb" x="460" y="41" text-anchor="middle">Document C</text><text class="tm" x="460" y="58" text-anchor="middle">Politique de sécurité</text>
+          <rect class="box-a" x="560" y="20" width="160" height="48" rx="6"/>
+          <text class="tb" x="640" y="41" text-anchor="middle">Document D</text><text class="tm" x="640" y="58" text-anchor="middle">Schéma réseau</text>
+
+          <path class="ln" d="M100 68V110" marker-end="url(#ah)"/><text class="tm" x="108" y="94">décrit</text>
+          <path class="ln" d="M280 68V110" marker-end="url(#ah)"/><text class="tm" x="288" y="94">décrit</text>
+          <path class="ln" d="M460 68V110" marker-end="url(#ah)"/><text class="tm" x="468" y="94">décrit</text>
+          <path class="ln" d="M640 68V110" marker-end="url(#ah)"/><text class="tm" x="648" y="94">décrit</text>
+
+          <rect class="box" x="20" y="112" width="160" height="72" rx="6"/>
+          <text class="tmono tm" x="100" y="130" text-anchor="middle">ÉCRIT</text>
+          <text x="100" y="152" text-anchor="middle">Accès ouverts à</text><text x="100" y="170" text-anchor="middle">tous les salariés</text>
+          <rect class="box" x="200" y="112" width="160" height="72" rx="6"/>
+          <text class="tmono tm" x="280" y="130" text-anchor="middle">ÉCRIT</text>
+          <text x="280" y="152" text-anchor="middle">Demande de suppression</text><text x="280" y="170" text-anchor="middle">envoyée au destinataire</text>
+          <rect class="box" x="380" y="112" width="160" height="72" rx="6"/>
+          <text class="tmono tm" x="460" y="130" text-anchor="middle">ÉCRIT</text>
+          <text x="460" y="152" text-anchor="middle">Mots de passe robustes</text><text x="460" y="170" text-anchor="middle">(règle 4.1)</text>
+          <rect class="box" x="560" y="112" width="160" height="72" rx="6"/>
+          <text class="tmono tm" x="640" y="130" text-anchor="middle">ÉCRIT</text>
+          <text x="640" y="152" text-anchor="middle">Internet, pare-feu,</text><text x="640" y="170" text-anchor="middle">réseau, serveur</text>
+
+          <path class="ln-w dash" d="M100 184V238" marker-end="url(#ahW)"/><text class="tm tw" x="108" y="216">preuves ?</text>
+          <path class="ln-w dash" d="M280 184V238" marker-end="url(#ahW)"/><text class="tm tw" x="288" y="216">preuves ?</text>
+          <path class="ln-w dash" d="M460 184V238" marker-end="url(#ahW)"/><text class="tm tw" x="468" y="216">preuves ?</text>
+          <path class="ln-w dash" d="M640 184V238" marker-end="url(#ahW)"/><text class="tm tw" x="648" y="216">preuves ?</text>
+
+          <rect class="box-w dash" x="20" y="240" width="160" height="72" rx="6"/>
+          <text class="tmono tw" x="100" y="258" text-anchor="middle">À VÉRIFIER</text>
+          <text x="100" y="280" text-anchor="middle">Droits réels par groupe</text><text x="100" y="298" text-anchor="middle">et journaux d'accès</text>
+          <rect class="box-w dash" x="200" y="240" width="160" height="72" rx="6"/>
+          <text class="tmono tw" x="280" y="258" text-anchor="middle">À VÉRIFIER</text>
+          <text x="280" y="280" text-anchor="middle">Suppression confirmée</text><text x="280" y="298" text-anchor="middle">par le destinataire ?</text>
+          <rect class="box-w dash" x="380" y="240" width="160" height="72" rx="6"/>
+          <text class="tmono tw" x="460" y="258" text-anchor="middle">À VÉRIFIER</text>
+          <text x="460" y="280" text-anchor="middle">Paramètres exigés</text><text x="460" y="298" text-anchor="middle">et contrôles réalisés</text>
+          <rect class="box-w dash" x="560" y="240" width="160" height="72" rx="6"/>
+          <text class="tmono tw" x="640" y="258" text-anchor="middle">À VÉRIFIER</text>
+          <text x="640" y="280" text-anchor="middle">Règles de filtrage</text><text x="640" y="298" text-anchor="middle">et flux réels</text>
+        </svg>
+      </div>
+      <figcaption>Chaque document décrit une situation déclarée (ligne du milieu). Le passage à la réalité vérifiée (ligne du bas) exige une preuve.</figcaption>
+    </figure>
+    <aside class="comment">
+      <h4>À commenter</h4>
+      <ol>
+        <li>Pour chaque colonne, quelle preuve permettrait de passer de la case « écrit » à la case « vérifié » ?</li>
+        <li>Un registre à jour garantit-il que les accès sont réellement limités ?</li>
+      </ol>
+      <label for="c-2">Votre commentaire (enregistré dans ce navigateur)</label>
+      <textarea id="c-2" data-save="Schéma 2 · Écrit et vérifié"></textarea>
+      <details><summary>Pistes de commentaire</summary><div>
+        <ul>
+          <li><b>A :</b> export des groupes d'accès, matrice de droits, journaux de consultation.</li>
+          <li><b>B :</b> accusé du destinataire, échange écrit confirmant la suppression.</li>
+          <li><b>C :</b> politique approuvée, procédures, journaux, comptes rendus de contrôle.</li>
+          <li><b>D :</b> export des règles du pare-feu, matrice de flux, tests autorisés.</li>
+        </ul>
+        <p>Non. Le registre déclare un état. La limitation effective des accès se constate dans les droits configurés et dans les journaux.</p>
+      </div></details>
+    </aside>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="methode">
+  <div>
+    <p class="eyebrow">Partie 3 · Méthode de travail</p>
+    <h2>La méthode d'analyse en six étapes</h2>
+  </div>
+  <p class="prose">Les six étapes se regroupent en trois temps : lire le document, analyser ses écarts, conclure par une action et une preuve.</p>
+
+  <div class="study">
+    <figure class="fig">
+      <div class="fig-head"><span class="fig-tag">Schéma 3</span><h3>Six étapes, trois temps, une boucle</h3></div>
+      <div class="fig-scroll">
+        <svg class="sv" viewBox="0 0 740 200" role="img" aria-label="Six étapes en trois temps : lire (identifier, extraire), analyser (repérer, évaluer), conclure (recommander, définir une preuve). Une flèche pointillée ramène de la preuve vers les écarts quand la preuve manque">
+          <path class="ln-a" d="M18 22H238M258 22H478M498 22H718"/>
+          <text class="tmono ta" x="128" y="14" text-anchor="middle">LIRE</text>
+          <text class="tmono ta" x="368" y="14" text-anchor="middle">ANALYSER</text>
+          <text class="tmono ta" x="608" y="14" text-anchor="middle">CONCLURE</text>
+
+          <rect class="box" x="18" y="34" width="100" height="100" rx="6"/><circle class="dot" cx="36" cy="54" r="10"/><text class="to tb" x="36" y="58" text-anchor="middle">1</text>
+          <text class="tb" x="68" y="88" text-anchor="middle">Identifier</text><text class="tb" x="68" y="104" text-anchor="middle">le document</text><text class="tm" x="68" y="124" text-anchor="middle">fiche d'identité</text>
+          <rect class="box" x="138" y="34" width="100" height="100" rx="6"/><circle class="dot" cx="156" cy="54" r="10"/><text class="to tb" x="156" y="58" text-anchor="middle">2</text>
+          <text class="tb" x="188" y="88" text-anchor="middle">Extraire</text><text class="tb" x="188" y="104" text-anchor="middle">les faits</text><text class="tm" x="188" y="124" text-anchor="middle">faits sourcés</text>
+          <rect class="box" x="258" y="34" width="100" height="100" rx="6"/><circle class="dot" cx="276" cy="54" r="10"/><text class="to tb" x="276" y="58" text-anchor="middle">3</text>
+          <text class="tb" x="308" y="88" text-anchor="middle">Repérer</text><text class="tb" x="308" y="104" text-anchor="middle">les écarts</text><text class="tm" x="308" y="124" text-anchor="middle">constats</text>
+          <rect class="box" x="378" y="34" width="100" height="100" rx="6"/><circle class="dot" cx="396" cy="54" r="10"/><text class="to tb" x="396" y="58" text-anchor="middle">4</text>
+          <text class="tb" x="428" y="88" text-anchor="middle">Évaluer</text><text class="tb" x="428" y="104" text-anchor="middle">les risques</text><text class="tm" x="428" y="124" text-anchor="middle">risques décrits</text>
+          <rect class="box" x="498" y="34" width="100" height="100" rx="6"/><circle class="dot" cx="516" cy="54" r="10"/><text class="to tb" x="516" y="58" text-anchor="middle">5</text>
+          <text class="tb" x="548" y="88" text-anchor="middle">Recommander</text><text class="tb" x="548" y="104" text-anchor="middle">une action</text><text class="tm" x="548" y="124" text-anchor="middle">mesure + exigence</text>
+          <rect class="box" x="618" y="34" width="100" height="100" rx="6"/><circle class="dot" cx="636" cy="54" r="10"/><text class="to tb" x="636" y="58" text-anchor="middle">6</text>
+          <text class="tb" x="668" y="88" text-anchor="middle">Définir</text><text class="tb" x="668" y="104" text-anchor="middle">une preuve</text><text class="tm" x="668" y="124" text-anchor="middle">critère de preuve</text>
+
+          <path class="ln" d="M119 84H137" marker-end="url(#ah)"/>
+          <path class="ln" d="M239 84H257" marker-end="url(#ah)"/>
+          <path class="ln" d="M359 84H377" marker-end="url(#ah)"/>
+          <path class="ln" d="M479 84H497" marker-end="url(#ah)"/>
+          <path class="ln" d="M599 84H617" marker-end="url(#ah)"/>
+
+          <path class="ln-w dash" d="M668 134V168H308V138" marker-end="url(#ahW)"/>
+          <text class="tm tw" x="488" y="188" text-anchor="middle">preuve absente : nouvel écart à instruire</text>
+        </svg>
+      </div>
+      <figcaption>Si la preuve définie à l'étape 6 ne peut pas être obtenue, l'analyse revient à l'étape 3 : l'absence de preuve devient elle-même un écart.</figcaption>
+    </figure>
+    <aside class="comment">
+      <h4>À commenter</h4>
+      <ol>
+        <li>Entre quelles étapes risque-t-on de confondre un fait et une hypothèse ?</li>
+        <li>Pourquoi la dernière étape renvoie-t-elle à l'étape 3 ?</li>
+      </ol>
+      <label for="c-3">Votre commentaire (enregistré dans ce navigateur)</label>
+      <textarea id="c-3" data-save="Schéma 3 · Six étapes"></textarea>
+      <details><summary>Pistes de commentaire</summary><div>
+        <p>Entre les étapes 2 et 3 : le fait relevé (« accès : tous les salariés ») se glisse facilement vers une conclusion (« tout le monde consulte les données ») avant d'avoir été vérifié.</p>
+        <p>Une recommandation dont l'efficacité ne peut pas être prouvée ne peut pas être contrôlée. Si la preuve manque, il faut le consigner comme un écart supplémentaire et chercher une autre source.</p>
+      </div></details>
+    </aside>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Étape</th><th>Ce que l'on fait</th></tr></thead>
+      <tbody>
+        <tr><td>1 · Identifier le document</td><td>Finalité, auteur, date, version, périmètre et statut d'approbation.</td></tr>
+        <tr><td>2 · Extraire les faits</td><td>Relever les informations explicites, les dates, les responsabilités et les mesures annoncées.</td></tr>
+        <tr><td>3 · Repérer les écarts</td><td>Contradictions, informations manquantes, règles vagues, contrôles non démontrés.</td></tr>
+        <tr><td>4 · Évaluer les risques</td><td>Décrire l'événement redouté et ses conséquences sur les données, l'activité ou la conformité.</td></tr>
+        <tr><td>5 · Recommander une action</td><td>Proposer une mesure concrète, proportionnée, rattachée à une exigence ou une bonne pratique identifiable.</td></tr>
+        <tr><td>6 · Définir une preuve</td><td>Préciser comment vérifier l'efficacité : journaux, procédure approuvée, test, rapport ou contrôle périodique.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <h3>La chaîne de raisonnement</h3>
+  </div>
+  <p class="prose">Un raisonnement rigoureux sépare ce que dit le document (fait), l'écart qu'il révèle (constat), l'explication possible (hypothèse) et la preuve qui permet de trancher (vérification).</p>
+
+  <div class="study">
+    <figure class="fig">
+      <div class="fig-head"><span class="fig-tag">Schéma 4</span><h3>De l'écart à la conclusion, sans raccourci</h3></div>
+      <div class="fig-scroll">
+        <svg class="sv" viewBox="0 0 740 280" role="img" aria-label="Chaîne fait, constat, hypothèse, vérification, illustrée par le registre NOVALYS. Une flèche rouge pointillée du constat vers une conclusion à éviter saute l'hypothèse et la vérification">
+          <rect class="box-a" x="20" y="16" width="150" height="52" rx="6"/><text class="tb" x="95" y="38" text-anchor="middle" style="font-size:13px">Fait</text><text class="tm" x="95" y="56" text-anchor="middle">ce que le document dit</text>
+          <rect class="box-a" x="210" y="16" width="150" height="52" rx="6"/><text class="tb" x="285" y="38" text-anchor="middle" style="font-size:13px">Constat</text><text class="tm" x="285" y="56" text-anchor="middle">l'écart ou l'incertitude</text>
+          <rect class="box-a" x="400" y="16" width="150" height="52" rx="6"/><text class="tb" x="475" y="38" text-anchor="middle" style="font-size:13px">Hypothèse</text><text class="tm" x="475" y="56" text-anchor="middle">explication à vérifier</text>
+          <rect class="box-a" x="590" y="16" width="150" height="52" rx="6"/><text class="tb" x="665" y="38" text-anchor="middle" style="font-size:13px">Vérification</text><text class="tm" x="665" y="56" text-anchor="middle">preuve à obtenir</text>
+          <path class="ln" d="M172 42H208" marker-end="url(#ah)"/>
+          <path class="ln" d="M362 42H398" marker-end="url(#ah)"/>
+          <path class="ln" d="M552 42H588" marker-end="url(#ah)"/>
+
+          <path class="ln dash" d="M95 68V100M285 68V100M475 68V100M665 68V100"/>
+          <text class="tm" x="103" y="89">exemple NOVALYS</text>
+
+          <rect class="box" x="20" y="100" width="150" height="64" rx="6"/><text x="95" y="126" text-anchor="middle">Registre : accès</text><text x="95" y="144" text-anchor="middle">« tous les salariés »</text>
+          <rect class="box" x="210" y="100" width="150" height="64" rx="6"/><text x="285" y="126" text-anchor="middle">Limitation des accès</text><text x="285" y="144" text-anchor="middle">non démontrée</text>
+          <rect class="box" x="400" y="100" width="150" height="64" rx="6"/><text x="475" y="126" text-anchor="middle">Droits trop larges</text><text x="475" y="144" text-anchor="middle">pour certains profils</text>
+          <rect class="box" x="590" y="100" width="150" height="64" rx="6"/><text x="665" y="126" text-anchor="middle">Groupes d'accès,</text><text x="665" y="144" text-anchor="middle">journaux, fonctions</text>
+          <path class="ln" d="M172 132H208" marker-end="url(#ah)"/>
+          <path class="ln" d="M362 132H398" marker-end="url(#ah)"/>
+          <path class="ln" d="M552 132H588" marker-end="url(#ah)"/>
+
+          <path class="ln-w dash" d="M285 164V206" marker-end="url(#ahW)"/>
+          <rect class="box-w" x="210" y="208" width="380" height="56" rx="6"/>
+          <text class="tmono tw" x="400" y="229" text-anchor="middle">RACCOURCI À ÉVITER</text>
+          <text x="400" y="250" text-anchor="middle">« Tout le monde a consulté les données »</text>
+          <text class="tw" x="568" y="246" text-anchor="middle" style="font-size:20px">✗</text>
+        </svg>
+      </div>
+      <figcaption>Le constat « la limitation n'est pas démontrée » ne permet pas de conclure à des consultations effectives. Il faut passer par l'hypothèse, puis la vérification.</figcaption>
+    </figure>
+    <aside class="comment">
+      <h4>À commenter</h4>
+      <ol>
+        <li>Reformulez les quatre cases avec un autre exemple, tiré de la fiche de violation (document B).</li>
+        <li>Pourquoi la conclusion en rouge n'est-elle pas défendable ?</li>
+      </ol>
+      <label for="c-4">Votre commentaire (enregistré dans ce navigateur)</label>
+      <textarea id="c-4" data-save="Schéma 4 · Chaîne de raisonnement"></textarea>
+      <details><summary>Pistes de commentaire</summary><div>
+        <ul>
+          <li><b>Fait :</b> « preuve de suppression : aucune pièce jointe ».</li>
+          <li><b>Constat :</b> la suppression par le destinataire n'est pas démontrée.</li>
+          <li><b>Hypothèse :</b> le fichier est peut-être encore en possession du destinataire.</li>
+          <li><b>Vérification :</b> accusé du destinataire, échange écrit, confirmation de suppression.</li>
+        </ul>
+        <p>La conclusion affirme un fait (des consultations) que le registre ne mentionne pas. Il indique seulement une autorisation large. L'absence de preuve ne prouve pas l'absence de protection, ni l'inverse : seuls les droits effectifs et les journaux permettent de conclure.</p>
+      </div></details>
+    </aside>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="cas">
+  <div>
+    <p class="eyebrow">Partie 4 · Mise en situation</p>
+    <h2>Étude de cas : NOVALYS</h2>
+  </div>
+  <p class="prose">NOVALYS est une entreprise fictive de commerce en ligne. Elle traite les commandes, héberge un site web et possède un serveur commercial interne. Un fichier contenant des données clients a été envoyé par erreur à un destinataire externe.</p>
+  <dl class="case">
+    <div><dt>Effectif</dt><dd>80 salariés</dd></div>
+    <div><dt>Documents</dt><dd>4 (A à D)</dd></div>
+    <div><dt>Incident</dt><dd>INC-2026-014</dd></div>
+    <div><dt>Clients concernés</dt><dd>500</dd></div>
+  </dl>
+
+  <!-- 4.1 -->
+  <div class="sub" id="doc-a">
+    <h3><span class="doc">Document A</span>Registre des traitements</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Élément</th><th>Information recensée</th></tr></thead>
+        <tbody>
+          <tr><td>Finalité</td><td>Gestion des commandes et de la relation client</td></tr>
+          <tr><td>Données</td><td>Identité, adresse, téléphone, courriel, historique des commandes</td></tr>
+          <tr><td>Personnes concernées</td><td>Clients</td></tr>
+          <tr><td>Accès</td><td>Tous les salariés</td></tr>
+          <tr><td>Conservation</td><td>10 ans pour toutes les données</td></tr>
+          <tr><td>Sécurité</td><td>Mot de passe utilisateur</td></tr>
+          <tr><td>Sous-traitant</td><td>Prestataire d'hébergement du site web</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tbl-cap">Version 1.2 · dernière mise à jour le 15/03/2024.</p>
+
+    <div class="study">
+      <figure class="fig">
+        <div class="fig-head"><span class="fig-tag">Schéma 5</span><h3>Accès déclaré et accès justifié</h3></div>
+        <div class="fig-scroll">
+          <svg class="sv" viewBox="0 0 740 270" role="img" aria-label="À gauche, les 80 salariés accèdent à toutes les données clients. À droite, à titre d'exemple, chaque service accède seulement aux données dont il a besoin, avec des durées adaptées">
+            <text class="tb" x="30" y="24">Déclaré dans le registre</text>
+            <text class="tb ta" x="400" y="24">Cible possible (exemple)</text>
+            <path class="ln dash" d="M370 36V262"/>
+
+            <rect class="box" x="30" y="110" width="100" height="64" rx="6"/>
+            <text class="tb" x="80" y="146" text-anchor="middle">80 salariés</text>
+            <path class="ln-w" d="M131 142H210" marker-end="url(#ahW)"/>
+            <text class="tm tw" x="170" y="132" text-anchor="middle">accès : tous</text>
+            <rect class="box-w" x="212" y="62" width="140" height="160" rx="6"/>
+            <text class="tb" x="282" y="86" text-anchor="middle">Données clients</text>
+            <text x="282" y="110" text-anchor="middle">Identité</text>
+            <text x="282" y="128" text-anchor="middle">Adresse</text>
+            <text x="282" y="146" text-anchor="middle">Téléphone</text>
+            <text x="282" y="164" text-anchor="middle">Courriel</text>
+            <text x="282" y="182" text-anchor="middle">Historique commandes</text>
+            <text class="tm tw" x="282" y="208" text-anchor="middle">conservation : 10 ans</text>
+
+            <rect class="box-a dash" x="400" y="60" width="130" height="44" rx="6"/><text x="465" y="87" text-anchor="middle">Service commandes</text>
+            <rect class="box-a dash" x="400" y="120" width="130" height="44" rx="6"/><text x="465" y="147" text-anchor="middle">Support client</text>
+            <rect class="box-a dash" x="400" y="180" width="130" height="44" rx="6"/><text x="465" y="207" text-anchor="middle">Comptabilité</text>
+            <path class="ln-a" d="M531 82H588" marker-end="url(#ahA)"/>
+            <path class="ln-a" d="M531 142H588" marker-end="url(#ahA)"/>
+            <path class="ln-a" d="M531 202H588" marker-end="url(#ahA)"/>
+            <rect class="box dash" x="590" y="60" width="130" height="44" rx="6"/><text x="655" y="79" text-anchor="middle" style="font-size:11.5px">Adresse +</text><text x="655" y="95" text-anchor="middle" style="font-size:11.5px">commandes</text>
+            <rect class="box dash" x="590" y="120" width="130" height="44" rx="6"/><text x="655" y="139" text-anchor="middle" style="font-size:11.5px">Identité +</text><text x="655" y="155" text-anchor="middle" style="font-size:11.5px">contact</text>
+            <rect class="box dash" x="590" y="180" width="130" height="44" rx="6"/><text x="655" y="199" text-anchor="middle" style="font-size:11.5px">Pièces comptables</text><text x="655" y="215" text-anchor="middle" style="font-size:11.5px">durée dédiée</text>
+            <text class="tm ta" x="560" y="252" text-anchor="middle">durée de conservation adaptée à chaque catégorie</text>
+          </svg>
+        </div>
+        <figcaption>À gauche, ce que le registre affirme. À droite, un exemple de ce que le registre pourrait justifier : des accès par fonction et des durées par catégorie de données.</figcaption>
+      </figure>
+      <aside class="comment">
+        <h4>À commenter</h4>
+        <ol>
+          <li>Relevez au moins trois points à vérifier dans le registre et expliquez les risques associés.</li>
+          <li>Pourquoi une durée de dix ans n'est-elle pas automatiquement une erreur ?</li>
+          <li>Que change le schéma de droite pour la confidentialité des données ?</li>
+        </ol>
+        <label for="c-5">Votre commentaire (enregistré dans ce navigateur)</label>
+        <textarea id="c-5" data-save="Schéma 5 · Registre (A)"></textarea>
+        <details><summary>Pistes de commentaire</summary><div>
+          <ul>
+            <li><b>Habilitations :</b> l'accès de tous les salariés à des données clients est à confronter au besoin de chaque fonction.</li>
+            <li><b>Conservation :</b> certaines pièces comptables doivent être conservées dix ans, mais toutes les données n'ont pas la même durée. Elle se justifie par catégorie.</li>
+            <li><b>Sécurité :</b> « mot de passe utilisateur » est une mesure unique et peu précise. Quelles autres mesures (authentification, journalisation, sauvegarde) ?</li>
+            <li><b>Actualité :</b> mis à jour le 15/03/2024, soit plus de deux ans et demi avant l'incident du 20/10/2026.</li>
+            <li><b>Sous-traitant :</b> l'hébergeur est cité sans précision sur le contrat ni les garanties.</li>
+          </ul>
+          <p>Risques : consultation injustifiée ou fuite interne, conservation excessive, difficulté à démontrer la conformité en cas de contrôle. Dans la cible, le nombre de salariés ne change pas, mais chaque service voit moins de données, ce qui réduit l'exposition.</p>
+        </div></details>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 4.2 -->
+  <div class="sub" id="doc-b">
+    <h3><span class="doc">Document B</span>Fiche de violation INC-2026-014</h3>
+    <p class="prose">Découverte le 20/10/2026 à 10 h : un fichier contenant les coordonnées de 500 clients a été envoyé à une adresse externe erronée. Voici l'état de la fiche.</p>
+    <div class="grid-status">
+      <div class="st"><span class="pill ok">Renseigné</span><div><b>Découverte</b><span class="v">20/10/2026 à 10 h</span></div></div>
+      <div class="st"><span class="pill ok">Renseigné</span><div><b>Description</b><span class="v">coordonnées de 500 clients, adresse externe erronée</span></div></div>
+      <div class="st"><span class="pill mid">À confirmer</span><div><b>Cause</b><span class="v">erreur humaine supposée</span></div></div>
+      <div class="st"><span class="pill ok">Renseigné</span><div><b>Mesure prise</b><span class="v">demande de suppression envoyée au destinataire</span></div></div>
+      <div class="st"><span class="pill no">Manquant</span><div><b>Analyse des risques</b><span class="v">non renseignée</span></div></div>
+      <div class="st"><span class="pill no">Manquant</span><div><b>Preuve de suppression</b><span class="v">aucune pièce jointe</span></div></div>
+      <div class="st"><span class="pill no">Manquant</span><div><b>Notification à la CNIL</b><span class="v">non renseignée</span></div></div>
+      <div class="st"><span class="pill no">Manquant</span><div><b>Information des personnes</b><span class="v">non renseignée</span></div></div>
+    </div>
+
+    <div class="study">
+      <figure class="fig">
+        <div class="fig-head"><span class="fig-tag">Schéma 6</span><h3>Le délai de 72 heures</h3></div>
+        <div class="fig-scroll">
+          <svg class="sv" viewBox="0 0 740 150" role="img" aria-label="Frise de 72 heures entre la découverte de la violation le 20/10/2026 à 10 h et l'échéance indicative de notification le 23/10/2026 à 10 h">
+            <rect class="box-a" x="40" y="78" width="660" height="12" rx="3"/>
+            <path class="ln" d="M40 72V96M260 72V96M480 72V96M700 72V96"/>
+            <circle class="dot" cx="40" cy="84" r="7"/>
+            <circle class="dot-w" cx="700" cy="84" r="7"/>
+            <text class="tb" x="40" y="42" text-anchor="start">Découverte de la violation</text>
+            <text class="tm" x="40" y="58" text-anchor="start">T0 · fiche INC-2026-014</text>
+            <text class="tb tw" x="700" y="42" text-anchor="end">Échéance indicative</text>
+            <text class="tm" x="700" y="58" text-anchor="end">T0 + 72 h, si la notification est requise</text>
+            <text class="tb ta" x="370" y="68" text-anchor="middle">72 h</text>
+            <text class="tm" x="40" y="116" text-anchor="start">20/10/2026 · 10 h</text><text class="tm" x="40" y="132" text-anchor="start">T0</text>
+            <text class="tm" x="260" y="116" text-anchor="middle">21/10 · 10 h</text><text class="tm" x="260" y="132" text-anchor="middle">+ 24 h</text>
+            <text class="tm" x="480" y="116" text-anchor="middle">22/10 · 10 h</text><text class="tm" x="480" y="132" text-anchor="middle">+ 48 h</text>
+            <text class="tm" x="700" y="116" text-anchor="end">23/10/2026 · 10 h</text><text class="tm" x="700" y="132" text-anchor="end">+ 72 h</text>
+          </svg>
+        </div>
+        <figcaption>Le délai court à partir de la prise de connaissance de la violation. Les quatre éléments manquants de la fiche doivent être traités à l'intérieur de cette fenêtre.</figcaption>
+      </figure>
+      <aside class="comment">
+        <h4>À commenter</h4>
+        <ol>
+          <li>Quelles informations manquent dans la fiche, et lesquelles faut-il obtenir en premier ?</li>
+          <li>Que faire si l'analyse du risque n'est pas terminée à l'échéance ?</li>
+        </ol>
+        <label for="c-6">Votre commentaire (enregistré dans ce navigateur)</label>
+        <textarea id="c-6" data-save="Schéma 6 · Délai de 72 h"></textarea>
+        <details><summary>Pistes de commentaire</summary><div>
+          <p>En priorité : l'analyse des risques, car elle conditionne toutes les décisions suivantes. Puis la preuve de suppression, l'identification exacte du destinataire et des données envoyées, et la motivation écrite des décisions de notification.</p>
+          <p>Le règlement européen prévoit qu'un retard doit être motivé et que l'information peut être transmise en plusieurs temps lorsque tout n'est pas encore connu. À vérifier dans la version du texte applicable.</p>
+        </div></details>
+      </aside>
+    </div>
+
+    <div class="study">
+      <figure class="fig">
+        <div class="fig-head"><span class="fig-tag">Schéma 7</span><h3>Arbre de décision : notifier, informer, documenter</h3></div>
+        <div class="fig-scroll">
+          <svg class="sv" viewBox="0 0 740 440" role="img" aria-label="Arbre de décision. Si le risque pour les droits et libertés est peu probable, pas de notification CNIL, décision motivée. Si le risque est probable, notification dans les 72 heures. Si le risque est élevé, informer aussi les personnes concernées. Dans tous les cas, documenter la violation">
+            <rect class="box-a" x="270" y="10" width="200" height="40" rx="6"/>
+            <text class="tb" x="370" y="35" text-anchor="middle">Violation de données constatée</text>
+            <path class="ln" d="M370 50V84" marker-end="url(#ah)"/>
+
+            <rect class="box" x="260" y="86" width="220" height="52" rx="26"/>
+            <text x="370" y="108" text-anchor="middle">Risque pour les droits et</text><text x="370" y="124" text-anchor="middle">libertés des personnes ?</text>
+
+            <path class="ln" d="M260 112H130V176" marker-end="url(#ah)"/><text class="tm" x="195" y="104" text-anchor="middle">peu probable</text>
+            <path class="ln" d="M480 112H560V176" marker-end="url(#ah)"/><text class="tm" x="520" y="104" text-anchor="middle">probable</text>
+
+            <rect class="box" x="20" y="178" width="220" height="68" rx="6"/>
+            <text class="tb" x="130" y="200" text-anchor="middle">Pas de notification CNIL</text>
+            <text x="130" y="218" text-anchor="middle">Décision motivée,</text><text x="130" y="234" text-anchor="middle">consignée dans la fiche</text>
+
+            <rect class="box-a" x="420" y="178" width="280" height="68" rx="6"/>
+            <text class="tb" x="560" y="200" text-anchor="middle">Notification à la CNIL</text>
+            <text x="560" y="218" text-anchor="middle">dans les 72 h si possible,</text><text x="560" y="234" text-anchor="middle">avec les informations disponibles</text>
+
+            <path class="ln" d="M560 246V280" marker-end="url(#ah)"/>
+            <rect class="box" x="430" y="282" width="260" height="52" rx="26"/>
+            <text x="560" y="304" text-anchor="middle">Risque élevé pour les</text><text x="560" y="320" text-anchor="middle">personnes concernées ?</text>
+
+            <path class="ln" d="M560 334V352H440V366" marker-end="url(#ah)"/><text class="tm" x="500" y="346" text-anchor="middle">non</text>
+            <path class="ln" d="M560 334V352H640V366" marker-end="url(#ah)"/><text class="tm" x="600" y="346" text-anchor="middle">oui</text>
+
+            <rect class="box" x="350" y="368" width="180" height="58" rx="6"/>
+            <text class="tb" x="440" y="388" text-anchor="middle">Pas d'information</text><text x="440" y="404" text-anchor="middle">individuelle</text><text x="440" y="419" text-anchor="middle" class="tm">décision motivée</text>
+            <rect class="box-a" x="550" y="368" width="180" height="58" rx="6"/>
+            <text class="tb" x="640" y="392" text-anchor="middle">Informer aussi les</text><text class="tb" x="640" y="410" text-anchor="middle">personnes concernées</text>
+
+            <rect class="box dash" x="20" y="300" width="300" height="100" rx="6"/>
+            <text class="tb" x="170" y="326" text-anchor="middle">Dans tous les cas</text>
+            <text x="170" y="347" text-anchor="middle">documenter la violation :</text>
+            <text x="170" y="364" text-anchor="middle">faits, effets, mesures</text>
+            <text x="170" y="381" text-anchor="middle">et décisions prises</text>
+          </svg>
+        </div>
+        <figcaption>La notification à l'autorité et l'information des personnes répondent à deux critères distincts : le risque, puis le risque élevé. Références : RGPD, articles 33 et 34, à vérifier selon la version applicable.</figcaption>
+      </figure>
+      <aside class="comment">
+        <h4>À commenter</h4>
+        <ol>
+          <li>Peut-on conclure, d'après la fiche INC-2026-014, que la CNIL doit obligatoirement être notifiée ?</li>
+          <li>Quels éléments permettraient de répondre à la question « risque élevé » ?</li>
+        </ol>
+        <label for="c-7">Votre commentaire (enregistré dans ce navigateur)</label>
+        <textarea id="c-7" data-save="Schéma 7 · Arbre de décision"></textarea>
+        <details><summary>Pistes de commentaire</summary><div>
+          <p>Non, pas à partir de la fiche seule. La notification est requise sauf si la violation n'est pas susceptible d'engendrer un risque pour les droits et libertés, et cette évaluation n'est pas renseignée. Il faut la faire, puis motiver la décision, dans un sens comme dans l'autre.</p>
+          <ul>
+            <li>la nature des données envoyées (ici des coordonnées) ;</li>
+            <li>l'identité du destinataire et sa fiabilité ;</li>
+            <li>la possibilité de récupérer ou de faire supprimer le fichier, avec preuve ;</li>
+            <li>les conséquences potentielles pour les personnes (hameçonnage, usurpation) ;</li>
+            <li>le nombre de personnes : un facteur parmi d'autres, qui ne suffit pas à fixer le niveau de risque.</li>
+          </ul>
+        </div></details>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 4.3 -->
+  <div class="sub" id="doc-c">
+    <h3><span class="doc">Document C</span>Extrait de la politique de sécurité</h3>
+    <ul class="rules">
+      <li><span class="k">4.1</span>Les salariés utilisent des mots de passe robustes.</li>
+      <li><span class="k">4.2</span>Les comptes administrateurs sont réservés aux informaticiens.</li>
+      <li><span class="k">4.3</span>Les événements de sécurité sont journalisés.</li>
+      <li><span class="k">4.4</span>Les incidents doivent être signalés au service informatique.</li>
+      <li><span class="k">4.5</span>Aucune périodicité de revue des droits n'est définie.</li>
+    </ul>
+    <p class="tbl-cap">Approbation et date de révision : non indiquées dans l'extrait.</p>
+
+    <div class="study">
+      <figure class="fig">
+        <div class="fig-head"><span class="fig-tag">Schéma 8</span><h3>Une règle n'est vérifiable que si elle descend jusqu'à la preuve</h3></div>
+        <div class="fig-scroll">
+          <svg class="sv" viewBox="0 0 740 310" role="img" aria-label="Trois niveaux empilés : la règle 4.3, présente dans l'extrait, la procédure à définir, et la preuve à demander. Des flèches indiquent que la règle se précise par la procédure et se démontre par la preuve">
+            <rect class="box-a" x="20" y="16" width="700" height="64" rx="6"/>
+            <text class="tmono ta" x="38" y="42">NIVEAU 1</text><text class="tb" x="38" y="62" style="font-size:13px">Règle</text>
+            <path class="ln-a" d="M150 26V70"/>
+            <text class="tb" x="168" y="42">4.3 · Les événements de sécurité sont journalisés.</text>
+            <text class="tm" x="168" y="62">Présent dans l'extrait, mais sans précision.</text>
+
+            <path class="ln-a" d="M370 80V124" marker-end="url(#ahA)"/><text class="tm ta" x="382" y="108">se précise par</text>
+
+            <rect class="box-w dash" x="20" y="126" width="700" height="64" rx="6"/>
+            <text class="tmono tw" x="38" y="152">NIVEAU 2</text><text class="tb" x="38" y="172" style="font-size:13px">Procédure</text>
+            <path class="ln-w" d="M150 136V180"/>
+            <text class="tb" x="168" y="152">Quels systèmes et quels événements ? Quelle durée de conservation ?</text>
+            <text class="tm" x="168" y="172">Qui peut consulter les journaux ? Non précisé dans l'extrait.</text>
+
+            <path class="ln-a" d="M370 190V234" marker-end="url(#ahA)"/><text class="tm ta" x="382" y="218">se démontre par</text>
+
+            <rect class="box-w dash" x="20" y="236" width="700" height="64" rx="6"/>
+            <text class="tmono tw" x="38" y="262">NIVEAU 3</text><text class="tb" x="38" y="282" style="font-size:13px">Preuve</text>
+            <path class="ln-w" d="M150 246V290"/>
+            <text class="tb" x="168" y="262">Journaux, rapports de revue, comptes rendus de contrôle.</text>
+            <text class="tm" x="168" y="282">À demander au service informatique.</text>
+          </svg>
+        </div>
+        <figcaption>Dans l'extrait, seul le niveau 1 est présent. Les niveaux 2 et 3, en pointillés, sont ce qu'il faut obtenir pour passer d'une règle générale à un contrôle vérifiable.</figcaption>
+      </figure>
+      <aside class="comment">
+        <h4>À commenter</h4>
+        <ol>
+          <li>Identifiez les règles 4.1 à 4.5 dont l'application n'est pas démontrée.</li>
+          <li>Transformez au moins deux règles générales en contrôles vérifiables.</li>
+        </ol>
+        <label for="c-8">Votre commentaire (enregistré dans ce navigateur)</label>
+        <textarea id="c-8" data-save="Schéma 8 · Politique (C)"></textarea>
+        <details><summary>Pistes de commentaire</summary><div>
+          <div class="tbl-wrap" style="width:100%">
+            <table style="min-width:520px">
+              <thead><tr><th>Règle générale</th><th>Contrôle vérifiable</th><th>Preuve</th></tr></thead>
+              <tbody>
+                <tr><td>4.1 Mots de passe robustes</td><td>Exigences définies (longueur, renouvellement, authentification renforcée pour les comptes à privilèges).</td><td>Configuration des systèmes, rapport de contrôle.</td></tr>
+                <tr><td>4.2 Comptes administrateurs</td><td>Liste nominative des comptes à privilèges et revue périodique.</td><td>Export des comptes, compte rendu de revue.</td></tr>
+                <tr><td>4.3 Journalisation</td><td>Systèmes et événements listés, conservation et accès aux journaux définis.</td><td>Extrait de journaux, procédure approuvée.</td></tr>
+                <tr><td>4.4 Signalement</td><td>Procédure avec contact et délai de signalement.</td><td>Registre des incidents signalés.</td></tr>
+                <tr><td>4.5 Revue des droits</td><td>Périodicité de revue définie et responsable désigné.</td><td>Comptes rendus de revue datés.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>À demander aussi : la politique approuvée, avec sa date de révision, car l'extrait n'indique ni l'approbation ni la révision.</p>
+        </div></details>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 4.4 -->
+  <div class="sub" id="doc-d">
+    <h3><span class="doc">Document D</span>Schéma réseau simplifié</h3>
+    <p class="prose">Schéma pédagogique : la configuration n'est pas fournie, les flux et les règles réels ne sont pas documentés. Les repères numérotés signalent ce qui ne figure pas dans le schéma.</p>
+
+    <div class="study">
+      <figure class="fig">
+        <div class="fig-head"><span class="fig-tag">Schéma 9</span><h3>Le réseau de NOVALYS et ses zones d'ombre</h3></div>
+        <div class="fig-scroll">
+          <svg class="sv" viewBox="0 0 740 370" role="img" aria-label="Schéma réseau : Internet, routeur et pare-feu, réseau utilisateurs et serveur commercial. Six repères signalent ce qui manque : règles de filtrage, flux entrants, séparation des zones, administration, hébergement du site web, journaux">
+            <rect class="box" x="270" y="16" width="200" height="42" rx="21"/><text class="tb" x="370" y="42" text-anchor="middle">Internet</text>
+            <rect class="box-w dash" x="540" y="16" width="180" height="42" rx="6"/><text x="630" y="33" text-anchor="middle" style="font-size:11.5px">Site web</text><text x="630" y="49" text-anchor="middle" style="font-size:11.5px">hébergement ?</text>
+            <path class="ln-w dash" d="M470 37H540"/>
+            <path class="ln" d="M370 58V100"/>
+
+            <rect class="box-a" x="290" y="100" width="160" height="50" rx="6"/>
+            <text class="tb" x="370" y="121" text-anchor="middle">Routeur / pare-feu</text><text class="tm" x="370" y="138" text-anchor="middle">règles non fournies</text>
+
+            <path class="ln" d="M370 150V180M180 220V180H560V220"/>
+
+            <rect class="box" x="60" y="220" width="240" height="70" rx="6"/>
+            <text class="tb" x="180" y="246" text-anchor="middle">Réseau utilisateurs</text><text x="180" y="263" text-anchor="middle">Postes commerciaux</text><text x="180" y="279" text-anchor="middle">et administratifs</text>
+            <rect class="box" x="440" y="220" width="240" height="70" rx="6"/>
+            <text class="tb" x="560" y="246" text-anchor="middle">Serveur commercial</text><text x="560" y="263" text-anchor="middle">Données clients</text><text x="560" y="279" text-anchor="middle">et commandes</text>
+
+            <path class="ln-w dash" d="M300 255H440"/><text class="tm tw" x="370" y="247" text-anchor="middle">flux ?</text>
+
+            <rect class="box-w dash" x="60" y="318" width="220" height="40" rx="6"/><text x="170" y="343" text-anchor="middle">Journaux / supervision ?</text>
+            <rect class="box-w dash" x="500" y="318" width="200" height="40" rx="6"/><text x="600" y="343" text-anchor="middle">Administration ?</text>
+            <path class="ln-w dash" d="M600 290V318"/>
+
+            <circle class="cal" cx="468" cy="125" r="11"/><text class="caln" x="468" y="129" text-anchor="middle">1</text>
+            <circle class="cal" cx="392" cy="80" r="11"/><text class="caln" x="392" y="84" text-anchor="middle">2</text>
+            <circle class="cal" cx="370" cy="276" r="11"/><text class="caln" x="370" y="280" text-anchor="middle">3</text>
+            <circle class="cal" cx="620" cy="304" r="11"/><text class="caln" x="620" y="308" text-anchor="middle">4</text>
+            <circle class="cal" cx="505" cy="20" r="11"/><text class="caln" x="505" y="24" text-anchor="middle">5</text>
+            <circle class="cal" cx="296" cy="338" r="11"/><text class="caln" x="296" y="342" text-anchor="middle">6</text>
+          </svg>
+        </div>
+        <figcaption>Les traits pleins montrent ce que le schéma représente. Les éléments en pointillés rouges sont absents du document et seraient à demander.</figcaption>
+        <ol class="badges">
+          <li>Les règles de filtrage du pare-feu ne sont pas fournies.</li>
+          <li>Les flux entrants autorisés depuis Internet ne sont pas listés.</li>
+          <li>La séparation entre réseau utilisateurs et serveur n'est pas représentée.</li>
+          <li>Le chemin d'administration n'apparaît pas.</li>
+          <li>L'hébergement du site web (interne ou chez le prestataire du registre) n'est pas indiqué.</li>
+          <li>La journalisation et la supervision ne figurent pas sur le schéma.</li>
+        </ol>
+      </figure>
+      <aside class="comment">
+        <h4>À commenter</h4>
+        <ol>
+          <li>Pourquoi ne peut-on pas confirmer que le serveur commercial est correctement protégé ?</li>
+          <li>Pour chaque repère de 1 à 6, quelle preuve technique demander au service informatique ?</li>
+        </ol>
+        <label for="c-9">Votre commentaire (enregistré dans ce navigateur)</label>
+        <textarea id="c-9" data-save="Schéma 9 · Réseau (D)"></textarea>
+        <details><summary>Pistes de commentaire</summary><div>
+          <ul>
+            <li><b>1 :</b> export de la configuration effective du pare-feu.</li>
+            <li><b>2 :</b> matrice des flux autorisés, avec leur justification.</li>
+            <li><b>3 :</b> plan de segmentation, tests autorisés de cloisonnement.</li>
+            <li><b>4 :</b> procédure d'administration, méthodes d'accès, journaux associés.</li>
+            <li><b>5 :</b> inventaire des hébergements, contrat ou documentation du prestataire.</li>
+            <li><b>6 :</b> politique de journalisation, extraits de journaux, supervision en place.</li>
+          </ul>
+          <p>Le schéma montre des boîtes, pas une configuration. L'absence d'information ne prouve pas l'absence de protection : elle empêche seulement de la confirmer.</p>
+        </div></details>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="corrige">
+  <div>
+    <p class="eyebrow">Partie 5 · Corrigé commenté</p>
+    <h2>Du constat à la recommandation</h2>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Document</th><th>Constat / risque</th><th>Recommandation</th><th>Preuve attendue</th></tr></thead>
+      <tbody>
+        <tr><td>Registre</td><td>Accès très larges non justifiés ; durées uniformes.</td><td>Établir une matrice d'habilitations et justifier les durées par catégorie.</td><td>Registre actualisé, matrice des droits, règles de conservation.</td></tr>
+        <tr><td>Violation</td><td>Évaluation des risques et décisions non documentées.</td><td>Compléter immédiatement la fiche, analyser les conséquences et motiver les décisions.</td><td>Fiche complétée, échanges, preuves de vérification, décision documentée.</td></tr>
+        <tr><td>Politique</td><td>Règles générales et contrôles insuffisamment définis.</td><td>Formaliser les exigences d'authentification, la journalisation et la revue des droits.</td><td>Politique approuvée, procédures, journaux et rapports de contrôle.</td></tr>
+        <tr><td>Schéma</td><td>Flux et règles de filtrage non documentés.</td><td>Comparer le schéma à la configuration réelle et limiter les flux au besoin.</td><td>Schéma actualisé, export des règles, tests autorisés, journaux.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="study">
+    <figure class="fig">
+      <div class="fig-head"><span class="fig-tag">Schéma 10</span><h3>Ordre de traitement</h3></div>
+      <div class="fig-scroll">
+        <svg class="sv" viewBox="0 0 740 250" role="img" aria-label="Deux couloirs : maintenant, la fiche de violation B à compléter ; ensuite, des mesures structurelles planifiées sur le registre A, la politique C et le schéma réseau D">
+          <rect class="box dash" x="20" y="14" width="300" height="222" rx="8"/>
+          <text class="tmono tw" x="36" y="38">MAINTENANT · INCIDENT EN COURS</text>
+          <rect class="box-w" x="36" y="62" width="268" height="150" rx="6"/>
+          <text class="tb" x="170" y="90" text-anchor="middle" style="font-size:13px">Document B</text>
+          <text class="tm" x="170" y="108" text-anchor="middle">Fiche de violation INC-2026-014</text>
+          <text x="170" y="140" text-anchor="middle">Compléter la fiche</text>
+          <text x="170" y="160" text-anchor="middle">Évaluer le risque</text>
+          <text x="170" y="180" text-anchor="middle">Décider et motiver</text>
+
+          <path class="ln-a" d="M322 125H398" marker-end="url(#ahA)"/><text class="tm ta" x="360" y="117" text-anchor="middle">puis</text>
+
+          <rect class="box dash" x="400" y="14" width="320" height="222" rx="8"/>
+          <text class="tmono ta" x="416" y="38">ENSUITE · MESURES STRUCTURELLES</text>
+          <rect class="box-a" x="416" y="52" width="288" height="52" rx="6"/>
+          <text class="tb" x="560" y="73" text-anchor="middle">A · Registre</text><text class="tm" x="560" y="91" text-anchor="middle">habilitations et durées par catégorie</text>
+          <rect class="box-a" x="416" y="114" width="288" height="52" rx="6"/>
+          <text class="tb" x="560" y="135" text-anchor="middle">C · Politique</text><text class="tm" x="560" y="153" text-anchor="middle">règles vérifiables, revue des droits</text>
+          <rect class="box-a" x="416" y="176" width="288" height="52" rx="6"/>
+          <text class="tb" x="560" y="197" text-anchor="middle">D · Schéma réseau</text><text class="tm" x="560" y="215" text-anchor="middle">comparer à la configuration réelle</text>
+        </svg>
+      </div>
+      <figcaption>Le document B concerne un incident en cours d'analyse. Les mesures structurelles révélées par les trois autres documents sont à planifier.</figcaption>
+    </figure>
+    <aside class="comment">
+      <h4>À commenter</h4>
+      <ol>
+        <li>Pourquoi traiter le document B en premier ?</li>
+        <li>Quelles mesures des documents A et C réduiraient le risque qu'un incident comme INC-2026-014 se reproduise ?</li>
+      </ol>
+      <label for="c-10">Votre commentaire (enregistré dans ce navigateur)</label>
+      <textarea id="c-10" data-save="Schéma 10 · Priorités"></textarea>
+      <details><summary>Pistes de commentaire</summary><div>
+        <p>L'incident est en cours d'analyse et des délais s'appliquent. Le nombre de personnes touchées ne suffit pas à lui seul à déterminer le niveau de risque, ce qui justifie une évaluation rapide plutôt qu'un classement par volume.</p>
+        <p>Pistes : limiter les accès aux données clients (A), définir et faire approuver une règle de partage de fichiers avec contrôle (C), préciser la procédure de signalement des incidents (C).</p>
+      </div></details>
+    </aside>
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="livrable">
+  <div>
+    <p class="eyebrow">Partie 6 · Livrable étudiant</p>
+    <h2>Votre fiche d'analyse</h2>
+  </div>
+  <p class="prose">Complétez les champs pour chaque document. Les saisies restent dans ce navigateur et ne sont envoyées nulle part. Le bouton de copie rassemble la fiche et vos commentaires de schémas dans un seul texte à coller dans votre rapport.</p>
+
+  <div class="field" style="max-width:420px">
+    <label for="f-nom">Nom de l'étudiant</label>
+    <input type="text" id="f-nom" data-save="Nom">
+  </div>
+  <div class="form-doc" id="analyse-form"></div>
+  <div class="field">
+    <label for="f-conclusion">Conclusion générale et plan d'action</label>
+    <textarea id="f-conclusion" data-save="Conclusion et plan d'action" style="min-height:120px"></textarea>
+  </div>
+  <div class="actions">
+    <button class="btn" type="button" id="copy-all">Copier l'analyse complète</button>
+    <span class="status" id="copy-status" role="status"></span>
+  </div>
+  <div class="field" id="copy-fallback" hidden>
+    <label for="copy-out">Sélectionnez puis copiez ce texte</label>
+    <textarea id="copy-out" readonly style="min-height:160px"></textarea>
+  </div>
+
+  <h3>Barème d'évaluation</h3>
+  <div class="tbl-wrap" style="max-width:640px">
+    <table style="min-width:420px">
+      <thead><tr><th>Critère</th><th>Points</th></tr></thead>
+      <tbody>
+        <tr><td>Compréhension des quatre documents</td><td>4</td></tr>
+        <tr><td>Identification des écarts et informations manquantes</td><td>4</td></tr>
+        <tr><td>Analyse des risques et conséquences</td><td>4</td></tr>
+        <tr><td>Recommandations concrètes et justifiées</td><td>5</td></tr>
+        <tr><td>Rédaction et priorisation</td><td>3</td></tr>
+        <tr><td><b>Total</b></td><td><b>20</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="revision">
+  <div>
+    <p class="eyebrow">Partie 7 · Vérification des acquis</p>
+    <h2>Questions de révision</h2>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:76ch">
+    <details><summary>1. Un registre indique « accès : tous les salariés ». Que peut-on affirmer ?</summary><div><p>On peut affirmer que la limitation des accès n'est pas démontrée. On ne peut pas affirmer que tout le monde a consulté les données. Pour trancher, examiner les groupes d'accès et les journaux, puis comparer les autorisations aux fonctions.</p></div></details>
+    <details><summary>2. Quelle différence entre la notification à la CNIL et l'information des personnes ?</summary><div><p>La notification à l'autorité est requise sauf si la violation n'est pas susceptible d'engendrer un risque pour les droits et libertés. L'information des personnes répond à un critère distinct : un risque élevé. Dans les deux cas, la décision est motivée et documentée.</p></div></details>
+    <details><summary>3. Pourquoi un schéma réseau ne prouve-t-il pas que le serveur est protégé ?</summary><div><p>Il représente des équipements et des zones, pas la configuration effective. Il faut les règles de filtrage réelles, les flux autorisés, les méthodes d'administration, les journaux et des tests autorisés.</p></div></details>
+    <details><summary>4. Citez les six étapes de la méthode.</summary><div><p>Identifier le document, extraire les faits, repérer les écarts, évaluer les risques, recommander une action, définir une preuve.</p></div></details>
+    <details><summary>5. Que faire d'une hypothèse dans la chaîne de raisonnement ?</summary><div><p>La vérifier avant d'en faire une conclusion, en demandant la preuve qui permet de trancher. Une hypothèse reste une explication possible tant qu'elle n'est pas confirmée.</p></div></details>
+  </div>
+
+  <h3>Les réflexes à retenir</h3>
+  <ul class="checklist">
+    <li>Identifier la finalité, la date, la version et le périmètre du document.</li>
+    <li>Distinguer les faits, les constats et les hypothèses.</li>
+    <li>Relier chaque écart à un risque concret.</li>
+    <li>Justifier les recommandations par une exigence ou une bonne pratique.</li>
+    <li>Définir une preuve pour vérifier la mise en œuvre et l'efficacité.</li>
+    <li>Ne pas confondre information absente et défaillance prouvée.</li>
+  </ul>
+</section>
+
+<footer>
+  <span><b>Séance 7 · Analyser les documents techniques.</b> Support pédagogique, cas NOVALYS fictif. Références réglementaires à vérifier selon le contexte et la version applicable.</span>
+  <span>Adapté du support « Séance 7 — Analyse de documents techniques ». Les commentaires et les champs de la fiche sont enregistrés uniquement dans ce navigateur.</span>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var KEY="n7-";
+  function get(k){try{return localStorage.getItem(KEY+k)||""}catch(e){return ""}}
+  function set(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+
+  // Fiche d'analyse générée pour les quatre documents
+  var DOCS=[["A","Registre des traitements"],["B","Fiche de violation INC-2026-014"],["C","Politique de sécurité"],["D","Schéma réseau"]];
+  var FIELDS=[["faits","Faits relevés"],["ecarts","Écarts et risques"],["reco","Recommandation"],["preuve","Preuve attendue"]];
+  var host=document.getElementById("analyse-form");
+  var html="";
+  DOCS.forEach(function(d){
+    html+='<fieldset><legend>Document '+d[0]+' · '+d[1]+'</legend>';
+    FIELDS.forEach(function(f){
+      var id="f-"+d[0]+"-"+f[0];
+      html+='<div class="field"><label for="'+id+'">'+f[1]+'</label><textarea id="'+id+'" data-save="Document '+d[0]+' · '+f[1]+'"></textarea></div>';
+    });
+    html+='</fieldset>';
+  });
+  host.innerHTML=html;
+
+  var fields=[].slice.call(document.querySelectorAll("[data-save]"));
+  fields.forEach(function(el){
+    el.value=get(el.id);
+    el.addEventListener("input",function(){set(el.id,el.value)});
+  });
+
+  var btn=document.getElementById("copy-all");
+  var status=document.getElementById("copy-status");
+  var fb=document.getElementById("copy-fallback");
+  var out=document.getElementById("copy-out");
+
+  function build(){
+    var lines=["SÉANCE 7 · ANALYSE DE DOCUMENTS TECHNIQUES (cas NOVALYS)"];
+    var nom=document.getElementById("f-nom").value.trim();
+    if(nom){lines.push("Étudiant : "+nom)}
+    lines.push("");
+    var fiche=[],comm=[];
+    fields.forEach(function(el){
+      var v=el.value.trim();
+      if(!v||el.id==="f-nom"||el.id==="f-conclusion")return;
+      if(el.id.indexOf("c-")===0){comm.push(el.getAttribute("data-save")+"\n"+v)}
+      else{fiche.push(el.getAttribute("data-save")+"\n"+v)}
+    });
+    if(fiche.length){lines.push("FICHE D'ANALYSE","",fiche.join("\n\n"),"")}
+    var concl=document.getElementById("f-conclusion").value.trim();
+    if(concl){lines.push("CONCLUSION ET PLAN D'ACTION","",concl,"")}
+    if(comm.length){lines.push("COMMENTAIRES DE SCHÉMAS","",comm.join("\n\n"))}
+    return lines.join("\n");
+  }
+
+  btn.addEventListener("click",function(){
+    var text=build();
+    function fallback(){
+      out.value=text; fb.hidden=false; out.focus(); out.select();
+      status.textContent="Copie automatique refusée : le texte est sélectionné ci-dessous.";
+    }
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          fb.hidden=true; status.textContent="Analyse copiée.";
+        },fallback);
+      }else{fallback()}
+    }catch(e){fallback()}
+  });
+})();
+</script>
+
+</body></html>
